@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write  # required to upload assets to the release
+  actions: read    # required to download artifacts
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+  sensor:
+    uses: ./.github/workflows/build-sensor.yml
+    secrets: inherit
+
+  vsix:
+    uses: ./.github/workflows/build-vscode.yml
+    secrets: inherit
+
+  attach:
+    needs: [sensor, vsix, create]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*'
+          path: artifacts
+          merge-multiple: true
+
+      - name: List downloaded files
+        run: |
+          echo "Artifacts in ./artifacts:"
+          ls -la artifacts
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.zip
+            artifacts/*.vsix
+          fail_on_unmatched_files: true
+

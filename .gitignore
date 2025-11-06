@@ -1,0 +1,16 @@
+# Node / VS Code extension
+extensions/vscode/node_modules/
+extensions/vscode/out/
+*.vsix
+
+# Python
+sensor/.venv/
+sensor/build/
+sensor/dist/
+sensor/*.spec
+__pycache__/
+*.pyc
+
+# macOS / Windows noise
+.DS_Store
+Thumbs.db

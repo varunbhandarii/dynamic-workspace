@@ -1,0 +1,110 @@
+name: Build Sensor
+
+on:
+  push:
+    paths:
+      - "sensor/**"
+      - ".github/workflows/build-sensor.yml"
+  pull_request:
+    paths:
+      - "sensor/**"
+  workflow_call: {}
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            py: "3.11"
+          - os: macos-latest
+            arch: x64
+            py: "3.11"
+          - os: macos-latest
+            arch: arm64
+            py: "3.11"
+          - os: windows-latest
+            arch: x64
+            py: "3.11"
+
+    defaults:
+      run:
+        working-directory: sensor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('sensor/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build binary (Unix)
+        if: runner.os != 'Windows'
+        working-directory: sensor
+        run: |
+          MP_MODS=$(python -c "import mediapipe, pathlib; print(pathlib.Path(mediapipe.__file__).parent / 'modules')")
+          echo "MediaPipe modules at: $MP_MODS"
+          pyinstaller \
+            --noconfirm --clean --onefile \
+            --name dynamic-workspace-sensor \
+            --additional-hooks-dir pyinstaller-hooks \
+            --add-data "$MP_MODS:mediapipe/modules" \
+            main_sensor.py
+
+      - name: Build binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: sensor
+        run: |
+          $MP_MODS = python -c "import mediapipe, pathlib; print(pathlib.Path(mediapipe.__file__).parent / 'modules')"
+          echo "MediaPipe modules at: $MP_MODS"
+          pyinstaller `
+            --noconfirm --clean --onefile `
+            --name dynamic-workspace-sensor `
+            --additional-hooks-dir pyinstaller-hooks `
+            --add-data "$MP_MODS;mediapipe\modules" `
+            main_sensor.py
+
+      - name: Show dist
+        run: ls -la dist
+        shell: bash
+
+      - name: Package artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          zip -r "$RUNNER_TEMP/sensor-${{ matrix.os }}-${{ matrix.arch }}.zip" .
+        working-directory: sensor/dist
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = "$env:RUNNER_TEMP/sensor-Windows-${{ matrix.arch }}.zip"
+          Compress-Archive -Path * -DestinationPath $out -Force
+        working-directory: sensor/dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensor-${{ matrix.os }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/sensor-*.zip
+          if-no-files-found: error

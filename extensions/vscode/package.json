@@ -1,0 +1,157 @@
+{
+  "name": "dynamic-workspace",
+  "displayName": "Dynamic Workspace",
+  "description": "Automatically adapts your VS Code UI between REVIEW and FOCUS using a tiny camera sensor.",
+  "version": "0.1.0",
+  "publisher": "varun-bhandari",
+  "icon": "resources/icon.png",
+  "galleryBanner": {
+    "color": "#0E639C",
+    "theme": "dark"
+  },
+  "preview": true,
+  "categories": ["Other"],
+  "keywords": ["focus", "review", "camera", "productivity", "attention", "workflow"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/varunbhandarii/dynamic-workspace"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "dynamicWorkspace.pauseToggle", "title": "Dynamic Workspace: Pause/Resume" },
+      { "command": "dynamicWorkspace.snooze", "title": "Dynamic Workspace: Snooze…" },
+      { "command": "dynamicWorkspace.forceFocus", "title": "Dynamic Workspace: Force Focus" },
+      { "command": "dynamicWorkspace.forceReview", "title": "Dynamic Workspace: Force Review" },
+      { "command": "dynamicWorkspace.clearOverride", "title": "Dynamic Workspace: Clear Override" },
+      { "command": "dynamicWorkspace.reconnect", "title": "Dynamic Workspace: Reconnect Sensor" },
+      { "command": "dynamicWorkspace.openSettings", "title": "Dynamic Workspace: Open Settings" },
+      { "command": "dynamicWorkspace.calibrate", "title": "Dynamic Workspace: Calibrate…" },
+      { "command": "dynamicWorkspace.selectCamera", "title": "Dynamic Workspace: Select Camera…" },
+      { "command": "dynamicWorkspace.startSensor", "title": "Dynamic Workspace: Start Sensor" },
+      { "command": "dynamicWorkspace.stopSensor",  "title": "Dynamic Workspace: Stop Sensor" }
+    ],
+    "configuration": {
+      "title": "Dynamic Workspace",
+      "properties": {
+        "dynamicWorkspace.sensorUrl": {
+          "type": "string",
+          "default": "ws://localhost:8765",
+          "description": "WebSocket URL of the local sensor server."
+        },
+        "dynamicWorkspace.uiConfMin": {
+          "type": "number",
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum confidence to preview transitions."
+        },
+        "dynamicWorkspace.heartbeatMs": {
+          "type": "number",
+          "default": 4000,
+          "minimum": 1000,
+          "description": "Staleness threshold (ms) before marking connection stale."
+        },
+        "dynamicWorkspace.autoStartSensor": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, start the sensor binary on extension activation."
+        },
+        "dynamicWorkspace.sensorPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the sensor binary (dynamic-sensor / dynamic-sensor.exe)."
+        },
+        "dynamicWorkspace.sensorArgs": {
+          "type": "array",
+          "default": [],
+          "description": "Additional arguments passed to the sensor binary (advanced).",
+          "items": { "type": "string" }
+        },
+        "dynamicWorkspace.cameraIndex": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Default camera index for the sensor (used on auto-start)."
+        },
+        "dynamicWorkspace.foldLevelOnReview": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 7,
+          "description": "Fold-depth used in REVIEW (editor.foldLevelN)."
+        },
+        "dynamicWorkspace.zenModeOnReview": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enter Zen Mode in REVIEW, exit in FOCUS."
+        },
+        "dynamicWorkspace.affectMarkdown": {
+          "type": "boolean",
+          "default": false,
+          "description": "If false, skip folding/format changes for Markdown."
+        },
+        "dynamicWorkspace.debounceMs": {
+          "type": "number",
+          "default": 250,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Debounce for applying mode changes (ms)."
+        },
+        "dynamicWorkspace.languageAllowlist": {
+          "type": "array",
+          "default": [
+            "typescript",
+            "javascript",
+            "python",
+            "java",
+            "c",
+            "cpp",
+            "csharp",
+            "go",
+            "rust"
+          ],
+          "description": "Language ids which receive fold/wrap/minimap changes (empty = allow all).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dynamicWorkspace.scrollPauseMs": {
+          "type": "number",
+          "default": 1200,
+          "minimum": 0,
+          "maximum": 5000,
+          "description": "After you scroll, pause adaptations for this many milliseconds so the extension doesn't fight your gesture."
+        },
+        "dynamicWorkspace.minLinesToFold": {
+          "type": "number",
+          "default": 150,
+          "minimum": 1,
+          "description": "Skip folding in REVIEW if the file has fewer than this many lines."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "package": "vsce package",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.10",
+    "@vscode/vsce": "^2.0.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

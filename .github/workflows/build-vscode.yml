@@ -1,0 +1,82 @@
+name: Build VSIX
+
+on:
+  push:
+    paths:
+      - 'extensions/vscode/**'
+      - '.github/workflows/build-vscode.yml'
+  pull_request:
+    paths:
+      - 'extensions/vscode/**'
+  workflow_dispatch:
+  workflow_call: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extensions/vscode
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-fund --no-audit
+          fi
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Preview package contents (pre-package)
+        working-directory: extensions/vscode
+        run: |
+          echo "Files that WOULD be packaged:"
+          npx @vscode/vsce ls
+
+      - name: Package (vsce)
+        working-directory: extensions/vscode
+        run: npx @vscode/vsce package
+        # Output: *.vsix
+
+      # AFTER packaging, inspect the actual VSIX file
+      - name: Inspect VSIX (post-package)
+        shell: bash
+        working-directory: extensions/vscode
+        run: |
+          set -euo pipefail
+          VSIX="$(ls *.vsix | head -n1)"
+          echo "Listing first 200 lines of $VSIX:"
+          unzip -l "$VSIX" | sed -n '1,200p' || true
+
+          echo "Check for critical files:"
+          # Check extension JS entrypoint
+          if unzip -l "$VSIX" | awk '{print $4}' | grep -qx 'extension/out/extension.js'; then
+            echo "✅ Found extension/out/extension.js"
+          else
+            echo "❌ Missing extension/out/extension.js"
+            exit 1
+          fi
+
+          # Check bundled ws module
+          if unzip -l "$VSIX" | awk '{print $4}' | grep -q '^extension/node_modules/ws/'; then
+            echo "✅ Found extension/node_modules/ws/"
+          else
+            echo "❌ Missing extension/node_modules/ws/"
+            exit 1
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-workspace-vsix
+          path: extensions/vscode/*.vsix
+          if-no-files-found: error
