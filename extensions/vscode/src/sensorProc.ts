@@ -78,7 +78,7 @@ export class SensorProcessManager {
       }
 
       const port = parsePortFromWsUrl(url);
-      const args = ["--port", String(port), "--camera", String(cam), ...extra];
+      const args = ["--port", String(port), "--camera", String(cam), "--ppid", String(process.pid), ...extra];
 
       this.out.appendLine(`[dw] starting sensor: "${bin}" ${args.join(" ")}`);
       try {

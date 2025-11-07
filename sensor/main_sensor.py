@@ -9,6 +9,7 @@ import os
 import math
 from datetime import datetime
 import concurrent.futures
+import signal
 
 try:
     import psutil
@@ -140,6 +141,59 @@ g_qos = {
 }
 _frame_times = []
 _last_qos_adjust = 0
+
+_stop = threading.Event()
+
+def request_exit():
+    try:
+        _stop.set()
+    except Exception:
+        pass
+    os._exit(0)
+
+# Parent-PID watchdog
+def _parent_alive_win(ppid: int) -> bool:
+    try:
+        import ctypes, ctypes.wintypes as wt
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, wt.DWORD(ppid))
+        if not handle:
+            return False
+        exit_code = wt.DWORD()
+        ok = kernel.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+        kernel.CloseHandle(handle)
+        return bool(ok) and exit_code.value == 259
+    except Exception:
+        return False
+
+def parent_is_alive(ppid: int) -> bool:
+    if ppid <= 0:
+        return True
+    if sys.platform == "win32":
+        try:
+            import psutil
+            return psutil.pid_exists(ppid)
+        except Exception:
+            return _parent_alive_win(ppid)
+    else:
+        try:
+            os.kill(ppid, 0)
+            return True
+        except OSError:
+            return False
+
+def start_parent_guard(ppid: int):
+    if ppid <= 0:
+        return
+    def _guard():
+        while True:
+            time.sleep(2.0)
+            if not parent_is_alive(ppid):
+                print(f"[main] Parent PID {ppid} gone; exiting.")
+                request_exit()
+    t = threading.Thread(target=_guard, daemon=True)
+    t.start()
 
 def ensure_config_dir():
     try: os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -820,6 +874,11 @@ async def ws_receiver(websocket):
                         pass
                 await websocket.send(json.dumps({"type": "ack", "what": "set_qos", "qos": g_qos}))
 
+            if cmd == "shutdown":
+                await websocket.send(json.dumps({"type": "ack", "what": "shutdown"}))
+                print("[ws] Shutdown command received; exiting.")
+                request_exit()
+
     except websockets.exceptions.ConnectionClosed:
         return
 
@@ -846,6 +905,7 @@ def parse_args():
     p.add_argument("--port", type=int, default=8765, help="WebSocket port (default 8765)")
     p.add_argument("--camera", type=int, default=0, help="Camera index (default 0)")
     p.add_argument("--fps", type=float, default=TARGET_FPS, help="Processing target FPS")
+    p.add_argument("--ppid", type=int, default=0, help="Parent process id to watch; exit if it dies")
     return p.parse_args()
 
 if __name__ == "__main__":
@@ -854,6 +914,8 @@ if __name__ == "__main__":
     globals()["FRAME_BUDGET_MS"] = 1000.0 / TARGET_FPS
 
     globals()["g_cam_index"] = int(args.camera)
+
+    start_parent_guard(int(args.ppid))
 
     load_calibration_cache = load_calibration()
     print(f"[main] Starting pose/face thread (cam={args.camera}, target_fps={TARGET_FPS})...")

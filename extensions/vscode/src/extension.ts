@@ -168,7 +168,10 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.commands.registerCommand("dynamicWorkspace.startSensor", () => {
       sensorProc?.startFromConfig();
     }),
-    vscode.commands.registerCommand("dynamicWorkspace.stopSensor", () => {
+    vscode.commands.registerCommand("dynamicWorkspace.stopSensor", async () => {
+      try {
+        conn?.send({ cmd: "shutdown" });
+      } catch {}
       sensorProc?.stop();
     }),
     vscode.commands.registerCommand(
@@ -225,6 +228,9 @@ export function activate(ctx: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  try {
+    conn?.send({ cmd: "shutdown" });
+  } catch {}
   try {
     conn?.dispose();
   } catch {}
