@@ -21,15 +21,19 @@ jobs:
           - os: ubuntu-latest
             arch: x64
             py: "3.11"
+            platform_key: "linux-x64"
           - os: macos-latest
             arch: x64
             py: "3.11"
+            platform_key: "macos-x64"
           - os: macos-latest
             arch: arm64
             py: "3.11"
+            platform_key: "macos-arm64"
           - os: windows-latest
             arch: x64
             py: "3.11"
+            platform_key: "windows-x64"
 
     defaults:
       run:
@@ -51,15 +55,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      - name: Install zip (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
+      # Build with MediaPipe modules included
       - name: Build binary (Unix)
         if: runner.os != 'Windows'
-        working-directory: sensor
         run: |
           MP_MODS=$(python -c "import mediapipe, pathlib; print(pathlib.Path(mediapipe.__file__).parent / 'modules')")
           echo "MediaPipe modules at: $MP_MODS"
@@ -73,7 +83,6 @@ jobs:
       - name: Build binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        working-directory: sensor
         run: |
           $MP_MODS = python -c "import mediapipe, pathlib; print(pathlib.Path(mediapipe.__file__).parent / 'modules')"
           echo "MediaPipe modules at: $MP_MODS"
@@ -85,28 +94,46 @@ jobs:
             main_sensor.py
 
       - name: Show dist
-        run: ls -la dist
         shell: bash
+        run: |
+          echo "sensor/dist contents:"
+          ls -la dist || true
 
       - name: Package artifact (Unix)
         if: runner.os != 'Windows'
-        run: |
-          PLATFORM=$([[ "${{ matrix.os }}" == "macos-latest" ]] && echo "macos" || echo "linux")
-          ZIP="$RUNNER_TEMP/dw-sensor-$PLATFORM-${{ matrix.arch }}.zip"
-          zip -r "$ZIP" .
+        shell: bash
         working-directory: sensor/dist
+        run: |
+          set -euo pipefail
+          OUT_ZIP="$RUNNER_TEMP/dw-sensor-${{ matrix.platform_key }}.zip"
+          echo "Packaging to: $OUT_ZIP"
+          zip -r "$OUT_ZIP" .
+          echo "Runner temp listing:"
+          ls -la "$RUNNER_TEMP"
 
       - name: Package artifact (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          $out = "$env:RUNNER_TEMP/dw-sensor-windows-${{ matrix.arch }}.zip"
-          Compress-Archive -Path * -DestinationPath $out -Force
         working-directory: sensor/dist
+        run: |
+          $out = "$env:RUNNER_TEMP/dw-sensor-${{ matrix.platform_key }}.zip"
+          Write-Host "Packaging to: $out"
+          Compress-Archive -Path * -DestinationPath $out -Force
+          Write-Host "Runner temp listing:"
+          Get-ChildItem $env:RUNNER_TEMP
+
+      - name: Verify packaged file exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="${{ runner.temp }}/dw-sensor-${{ matrix.platform_key }}.zip"
+          echo "Verifying: $FILE"
+          test -f "$FILE" || (echo "❌ File not found"; exit 1)
+          echo "✅ Found $FILE"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sensor-${{ matrix.os }}-${{ matrix.arch }}
-          path: ${{ runner.temp }}/sensor-*.zip
+          name: dw-sensor-${{ matrix.platform_key }}
+          path: ${{ runner.temp }}/dw-sensor-${{ matrix.platform_key }}.zip
           if-no-files-found: error
