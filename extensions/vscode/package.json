@@ -10,8 +10,17 @@
     "theme": "dark"
   },
   "preview": true,
-  "categories": ["Other"],
-  "keywords": ["focus", "review", "camera", "productivity", "attention", "workflow"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "focus",
+    "review",
+    "camera",
+    "productivity",
+    "attention",
+    "workflow"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/varunbhandarii/dynamic-workspace"
@@ -25,17 +34,54 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      { "command": "dynamicWorkspace.pauseToggle", "title": "Dynamic Workspace: Pause/Resume" },
-      { "command": "dynamicWorkspace.snooze", "title": "Dynamic Workspace: Snooze…" },
-      { "command": "dynamicWorkspace.forceFocus", "title": "Dynamic Workspace: Force Focus" },
-      { "command": "dynamicWorkspace.forceReview", "title": "Dynamic Workspace: Force Review" },
-      { "command": "dynamicWorkspace.clearOverride", "title": "Dynamic Workspace: Clear Override" },
-      { "command": "dynamicWorkspace.reconnect", "title": "Dynamic Workspace: Reconnect Sensor" },
-      { "command": "dynamicWorkspace.openSettings", "title": "Dynamic Workspace: Open Settings" },
-      { "command": "dynamicWorkspace.calibrate", "title": "Dynamic Workspace: Calibrate…" },
-      { "command": "dynamicWorkspace.selectCamera", "title": "Dynamic Workspace: Select Camera…" },
-      { "command": "dynamicWorkspace.startSensor", "title": "Dynamic Workspace: Start Sensor" },
-      { "command": "dynamicWorkspace.stopSensor",  "title": "Dynamic Workspace: Stop Sensor" }
+      {
+        "command": "dynamicWorkspace.pauseToggle",
+        "title": "Dynamic Workspace: Pause/Resume"
+      },
+      {
+        "command": "dynamicWorkspace.snooze",
+        "title": "Dynamic Workspace: Snooze…"
+      },
+      {
+        "command": "dynamicWorkspace.forceFocus",
+        "title": "Dynamic Workspace: Force Focus"
+      },
+      {
+        "command": "dynamicWorkspace.forceReview",
+        "title": "Dynamic Workspace: Force Review"
+      },
+      {
+        "command": "dynamicWorkspace.clearOverride",
+        "title": "Dynamic Workspace: Clear Override"
+      },
+      {
+        "command": "dynamicWorkspace.reconnect",
+        "title": "Dynamic Workspace: Reconnect Sensor"
+      },
+      {
+        "command": "dynamicWorkspace.openSettings",
+        "title": "Dynamic Workspace: Open Settings"
+      },
+      {
+        "command": "dynamicWorkspace.calibrate",
+        "title": "Dynamic Workspace: Calibrate…"
+      },
+      {
+        "command": "dynamicWorkspace.selectCamera",
+        "title": "Dynamic Workspace: Select Camera…"
+      },
+      {
+        "command": "dynamicWorkspace.startSensor",
+        "title": "Dynamic Workspace: Start Sensor"
+      },
+      {
+        "command": "dynamicWorkspace.stopSensor",
+        "title": "Dynamic Workspace: Stop Sensor"
+      },
+      {
+        "command": "dynamicWorkspace.installSensor",
+        "title": "Dynamic Workspace: Install/Update Sensor"
+      }
     ],
     "configuration": {
       "title": "Dynamic Workspace",
@@ -72,7 +118,9 @@
           "type": "array",
           "default": [],
           "description": "Additional arguments passed to the sensor binary (advanced).",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "dynamicWorkspace.cameraIndex": {
           "type": "number",
@@ -134,6 +182,11 @@
           "default": 150,
           "minimum": 1,
           "description": "Skip folding in REVIEW if the file has fewer than this many lines."
+        },
+        "dynamicWorkspace.autoDownloadSensor": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true, the extension downloads and installs the correct sensor binary automatically when needed."
         }
       }
     }
@@ -145,6 +198,7 @@
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
     "@types/ws": "^8.5.10",
@@ -152,6 +206,7 @@
     "typescript": "^5.4.0"
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "ws": "^8.18.0"
   }
 }

@@ -7,6 +7,7 @@ import { ModeApplier } from "./apply";
 import { UxController } from "./ux";
 import { Calibrator } from "./calib";
 import { SensorProcessManager } from "./sensorProc";
+import { installOrUpdateSensor } from "./sensorDownload";
 
 let conn: ConnectionManager | null = null;
 let sensorProc: SensorProcessManager | null = null;
@@ -34,7 +35,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   out.appendLine(`[dw] activating — url=${url} uiConfMin=${uiConfMin}`);
 
   sensorProc = new SensorProcessManager(out);
-  sensorProc.startFromConfig();
+  sensorProc.startFromConfig(ctx);
 
   const policy = new PolicyEngine(uiConfMin);
   const applier = new ModeApplier(out);
@@ -126,7 +127,16 @@ export function activate(ctx: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand("dynamicWorkspace.stopSensor", () => {
       sensorProc?.stop();
-    })
+    }),
+    vscode.commands.registerCommand("dynamicWorkspace.installSensor", async () => {
+  const bin = await installOrUpdateSensor(ctx, out);
+  if (bin) {
+    await vscode.workspace.getConfiguration("dynamicWorkspace")
+      .update("sensorPath", bin, vscode.ConfigurationTarget.Global);
+    vscode.window.showInformationMessage("Dynamic Workspace: Sensor installed.");
+  }
+}),
+
   );
 
   const d1 = vscode.window.onDidChangeActiveTextEditor(() => applier.editorChanged());
@@ -142,7 +152,7 @@ export function activate(ctx: vscode.ExtensionContext) {
         e.affectsConfiguration("dynamicWorkspace.cameraIndex") ||
         e.affectsConfiguration("dynamicWorkspace.sensorUrl")) {
       const auto = cfg.get<boolean>("autoStartSensor", false);
-      if (auto) sensorProc?.restart(); else sensorProc?.stop();
+      if (auto) sensorProc?.restart(ctx); else sensorProc?.stop();
     }
   });
 
