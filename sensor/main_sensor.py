@@ -549,7 +549,7 @@ def run_pose_detection():
         if new_state != current_state:
             with g_state_lock:
                 g_current_state = new_state
-            print(f"[sensor] State changed → {new_state} (conf={overall_conf:.2f})")
+            print(f"[sensor] State changed -> {new_state} (conf={overall_conf:.2f})")
 
         frame_end = time.time()
         frame_ms = (frame_end - frame_start) * 1000.0
