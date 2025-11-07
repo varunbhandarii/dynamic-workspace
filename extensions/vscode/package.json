@@ -2,7 +2,7 @@
   "name": "dynamic-workspace",
   "displayName": "Dynamic Workspace",
   "description": "Automatically adapts your VS Code UI between REVIEW and FOCUS using a tiny camera sensor.",
-  "version": "0.1.1",
+  "version": "0.1.7",
   "publisher": "varun-bhandari",
   "icon": "resources/icon.png",
   "galleryBanner": {

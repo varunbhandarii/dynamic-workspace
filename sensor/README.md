@@ -3,7 +3,8 @@
 Local posture sensor that powers the Dynamic Workspace extension. Uses **OpenCV** + **MediaPipe** to estimate distance proxies, fuses them, and exposes a **WebSocket** API.
 
 - **Zero cloud**: all video processing stays on your machine.
-- **Adaptive QoS**: auto scales processing to stay responsive.
+- **Adaptive QoS**: auto-scales processing to stay responsive.
+- **Managed lifecycle**: exits automatically when the parent editor process ends and accepts a WebSocket **`shutdown`** command.
 
 ## Requirements
 
@@ -25,16 +26,18 @@ pyinstaller        # optional, for building single-file binaries
 cd sensor
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python main_sensor.py --port 8765 --camera 0 --fps 20
+python main_sensor.py --port 8765 --camera 0 --fps 20 --ppid 0
 ```
 
-The VS Code extension’s default URL is `ws://localhost:8765`.
+The VS Code extension’s default URL is `ws://localhost:8765`.  
+When the extension starts the sensor, it passes `--ppid <extension-host-pid>` so the sensor **self-terminates** if VS Code closes.
 
 ### Command-line flags
 
 - `--port <int>`: WebSocket port (default `8765`)
 - `--camera <int>`: Camera index (default `0`)
 - `--fps <float>`: Target processing fps (default `20`)
+- `--ppid <int>`: Parent PID to monitor (exit when the parent dies; default `0` = disabled)
 
 ## WebSocket protocol
 
@@ -44,14 +47,15 @@ Events **from** sensor:
   ```json
   { "type":"state", "v":6, "state":"FOCUS" }  // or REVIEW / TRANSITION_TO_*
   ```
-- **Heartbeat** (every 250–500ms typical)
+- **Heartbeat** (periodic)
   ```json
   {
     "type":"hb",
     "fps": 20.1,
     "metric_nose_z_x100": -43.9,
     "confidence": 0.92,
-    "features": { "eye_dist": 0.14, "bbox_area": 0.15, "roll_deg": 2.1, "yaw_proxy": 0.08, "has_face": true, "has_pose": true },
+    "features": { "eye_dist": 0.14, "bbox_area": 0.15, "roll_deg": 2.1, "yaw_proxy": 0.08,
+                  "has_face": true, "has_pose": true },
     "fused": { "raw": 0.58, "ema": 0.57 },
     "health": { "status": "OK", "flags": { "low_light": false, "camera_error": false } },
     "perf": { "avg_ms": 40.8, "target_fps": 20, "proc_scale": 0.9, "fd_stride": 1, "pose_stride": 1, "cpu_pct": 22.0 },
@@ -80,8 +84,13 @@ Commands **to** sensor (JSON):
 
 - **Camera discovery & switch**
   ```json
-  { "cmd":"cameras" }                 // → { "type":"cameras", "list":[0,1], "current":0 }
+  { "cmd":"cameras" }                  // → { "type":"cameras", "list":[0,1], "current":0 }
   { "cmd":"switch_camera", "index":1 } // → { "type":"ack", "what":"switch_camera", "ok":true, "index":1 }
+  ```
+
+- **Shutdown**
+  ```json
+  { "cmd":"shutdown" }                 // → { "type":"ack", "what":"shutdown" }
   ```
 
 ## Calibration storage
@@ -99,8 +108,11 @@ Calibration and face baselines are saved under an OS-specific config dir:
 macOS / Linux:
 ```bash
 cd sensor
-./scripts/build_pyinstaller.sh
-# output: sensor/dist/dw-sensor (or .exe on Windows)
+# Example (your build script may differ)
+pyinstaller --noconfirm --clean --onefile \
+  --name dynamic-workspace-sensor \
+  --additional-hooks-dir pyinstaller-hooks \
+  main_sensor.py
 ```
 
 Windows (PowerShell):
@@ -108,14 +120,16 @@ Windows (PowerShell):
 cd sensor
 python -m pip install -U pip wheel
 pip install -r requirements.txt
-pyinstaller -F -n dw-sensor --collect-submodules mediapipe --collect-data mediapipe --collect-submodules cv2 main_sensor.py
+pyinstaller -F -n dynamic-workspace-sensor `
+  --collect-submodules mediapipe --collect-data mediapipe `
+  --collect-submodules cv2 main_sensor.py
 ```
 
 ### OS notes
 
-- **Windows**: you may need the Microsoft Visual C++ Redistributable.
-- **macOS**: first run may need `xattr -d com.apple.quarantine ./dw-sensor`; allow camera in System Settings.
-- **Linux**: ensure `v4l2` / UVC camera has permissions; install OpenGL libs if OpenCV complains (`libgl1` on Debian/Ubuntu).
+- **Windows**: may require Microsoft Visual C++ Redistributable.
+- **macOS**: first run may need `xattr -d com.apple.quarantine ./dynamic-workspace-sensor`; allow camera access.
+- **Linux**: ensure UVC camera permissions; install OpenGL libs if OpenCV complains (`libgl1` on Debian/Ubuntu).
 
 ## Health & performance
 
